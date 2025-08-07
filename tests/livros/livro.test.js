@@ -257,16 +257,17 @@ describe('Livro API', () => {
   });
 
   describe('Exclusão', () => {
-      test('✅ Deve deletar livro por ID', async () => {
-          const response = await req(app).delete(`/livros/${livroId}`);
-          expect(response.statusCode).toBe(204);
-          expect(response.body).toHaveProperty('msg', 'Livro deletado com sucesso');
-      });
+    test('✅ Deve deletar livro por ID', async () => {
+        const response = await req(app).delete(`/livros/${livroId}`);
+        expect(response.statusCode).toBe(204);
+        // A LINHA ABAIXO FOI REMOVIDA, pois uma resposta 204 não tem corpo.
+        // expect(response.body).toHaveProperty('msg', 'Livro deletado com sucesso');
+    });
 
-      test('❌ Deve retornar 404 ao tentar deletar livro inexistente', async () => {
-          const response = await req(app).delete('/livros/9999');
-          expect(response.statusCode).toBe(404);
-          expect(response.body).toHaveProperty('msg', 'Livro não encontrado');
-      });
+    test('❌ Deve retornar 404 ao tentar deletar livro inexistente', async () => {
+        const response = await req(app).delete('/livros/9999');
+        expect(response.statusCode).toBe(404);
+        expect(response.body).toHaveProperty('msg', 'Livro não encontrado');
+    });
   });
 });

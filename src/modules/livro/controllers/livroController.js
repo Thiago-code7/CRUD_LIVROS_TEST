@@ -1,18 +1,18 @@
 const LivroModel = require('../models/livroModel');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
+const { sequelize } = require('../../../../config/configDB'); 
 
 class LivroController {
 
+    // ... As outras funções (criar, listar, buscar por id) permanecem idênticas ...
     static async criarLivro(req, res) {
         try {
             const { titulo, autor, ano_publicacao, genero, preco } = req.body;
 
-            // Validação básica
             if (!titulo || !autor || !ano_publicacao || !genero || preco === undefined) {
                 return res.status(400).json({ msg: 'Todos os campos são obrigatórios' });
             }
 
-            // Proteção contra SQL Injection
             const injectionRegex = /('|--|;|\/\*|\*\/|drop|select|insert|delete|update)/i;
             if (injectionRegex.test(titulo)) {
                 return res.status(400).json({ msg: 'Título inválido' });
@@ -82,40 +82,51 @@ class LivroController {
             return res.status(500).json({ msg: error.message });
         }
     }
+
+    /**
+     * ABORDAGEM FINAL E MAIS ROBUSTA
+     */
     static async buscarLivroPorTitulo(req, res) {
         try {
-          const { titulo } = req.query;
-      
-          if (!titulo) {
-            return res.status(400).json({ msg: 'Parâmetro "titulo" é obrigatório' });
-          }
-      
-          const injectionRegex = /('|--|;|\/\*|\*\/|drop|select|insert|delete|update)/i;
-          if (injectionRegex.test(titulo)) {
-            return res.status(400).json({ msg: 'Título inválido' });
-          }
-      
-          const livros = await LivroModel.findAll({
-            where: {
-              titulo: { [Op.like]: `%${titulo}%` }
+            const { titulo } = req.query;
+    
+            if (!titulo) {
+                return res.status(400).json({ msg: 'Parâmetro "titulo" é obrigatório' });
             }
-          });
-      
-          if (!livros || livros.length === 0) {
-            return res.status(404).json({ msg: 'Livro não encontrado' });
-          }
-      
-          // Retorna lista de livros encontrados (pode mudar se o teste esperar só um)
-          // Se teste espera só 1 livro no corpo, retorna o primeiro.
-          return res.status(200).json({ livro: livros[0].dataValues, msg: 'Livro encontrado' });
-      
+    
+            // 1. Obter o nome da tabela dinamicamente a partir do modelo.
+            //    Isso garante que estamos usando o nome de tabela correto.
+            const tableName = LivroModel.getTableName();
+    
+            // 2. Executar a consulta SQL pura usando o nome da tabela obtido.
+            //    As aspas duplas em `"${tableName}"` garantem que funcione com qualquer nome de tabela.
+            const livros = await sequelize.query(
+                `SELECT * FROM "${tableName}" WHERE "titulo" ILIKE :titulo`,
+                {
+                    replacements: { titulo: `%${titulo}%` },
+                    type: QueryTypes.SELECT
+                }
+            );
+    
+            if (!livros || livros.length === 0) {
+                return res.status(404).json({ msg: 'Livro não encontrado' });
+            }
+    
+            return res.status(200).json({ livro: livros[0], msg: 'Livro encontrado' });
+    
         } catch (error) {
-          console.error('Erro buscarLivroPorTitulo:', error); // DEBUG
-          return res.status(500).json({ msg: error.message });
+            // 3. Se um erro ocorrer, logá-lo e ENVIAR A MENSAGEM DE ERRO NA RESPOSTA.
+            //    Isso nos dirá exatamente o que o banco de dados está reclamando.
+            console.error('ERRO DETALHADO EM BUSCARLIVROPORTITULO:', error);
+            return res.status(500).json({ 
+                msg: 'Erro interno no servidor.',
+                error_details: error.message,
+                error_name: error.name
+            });
         }
-      }
-      
+    }
 
+    // ... As outras funções (deletar, atualizar) permanecem idênticas ...
     static async deletarLivro(req, res) {
         try {
             const { id } = req.params;
@@ -127,14 +138,12 @@ class LivroController {
 
             await LivroModel.destroy({ where: { id } });
 
-            // Retornar status 204 No Content, sem corpo, conforme esperado no teste
             return res.status(204).send();
 
         } catch (error) {
             return res.status(500).json({ msg: error.message });
         }
     }
-
 
     static async atualizarLivro(req, res) {
         try {
@@ -145,7 +154,6 @@ class LivroController {
                 return res.status(400).json({ msg: 'Dados inválidos para atualização' });
             }
 
-            // Proteção contra SQL Injection
             const injectionRegex = /('|--|;|\/\*|\*\/|drop|select|insert|delete|update)/i;
             if (injectionRegex.test(titulo)) {
                 return res.status(400).json({ msg: 'Título inválido' });

@@ -21,7 +21,7 @@ const LivroModel = sequelize.define('Livro', {
   },
   genero: {
     type: DataTypes.STRING(50),
-    allowNull: true
+    allowNull: false // <-- deve ser obrigatório para passar os testes
   },
   preco: {
     type: DataTypes.FLOAT,
